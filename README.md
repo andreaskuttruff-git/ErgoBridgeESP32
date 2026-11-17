@@ -1,7 +1,7 @@
 # ErgoBridge
 
 ESP32 firmware that connects to the RS232 port of a **daum electronic ergo_bike** cockpit (developed on an
-ergo_bike 8008 TRS) and will offer the bike as a standard **Bluetooth LE smart trainer** (Fitness Machine
+ergo_bike 8008 TRS) and offers the bike as a standard **Bluetooth LE smart trainer** (Fitness Machine
 Service, FTMS). Training apps, starting with [ErgoWattControl](https://github.com/andreaskuttruff-git/ErgoWattControl)
 and later Zwift, Rouvy, Kinomap, MyWhoosh or TrainerRoad, can then read power, cadence and heart rate and set
 the brake power.
@@ -15,11 +15,29 @@ reconnect and re-initialisation after a cockpit reset).
 | Milestone | Content | State |
 |---|---|---|
 | M1 | Daum protocol, self-healing bike logic, simulated cockpit, unit tests, serial console | done |
-| M2 | Bluetooth LE: FTMS (ERG / target power), Cycling Power, Heart Rate, Device Information | next |
-| M3 | FTMS driver in ErgoWattControl | |
+| M2 | Bluetooth LE: FTMS (ERG / target power), Cycling Power, Heart Rate, Device Information | done, not yet tried on a board |
+| M3 | FTMS driver in ErgoWattControl | next |
 | M4 | RS232 hardware (MAX3232) on the real cockpit | |
 | M5 | Real rides, reconnect tests | |
 | M6 | Simulation mode (grade → power) for Zwift & co. | |
+
+## Bluetooth
+
+The bridge advertises as **ErgoBridge** with these services:
+
+| Service | Content |
+|---|---|
+| Fitness Machine 0x1826 | Indoor Bike Data (speed, cadence, distance, power, heart rate, time; 1 Hz), Supported Power Range (25 W … cockpit maximum, 5 W steps), Control Point: Request Control, Reset, **Set Target Power**, Start, Stop/Pause; Fitness Machine Status |
+| Cycling Power 0x1818 | power and crank revolutions (for watches and apps that only read CPS) |
+| Heart Rate 0x180D | the cockpit's pulse, when it has one |
+| Device Information 0x180A | manufacturer, model, firmware version |
+| ErgoBridge status `c7b6d000-4e2a-4f69-9a5e-2d0e8b3f1a01` | characteristic `c7b6d001-…`: version, cockpit connected, cockpit type, max. watt, target limit, target watt |
+
+Behaviour worth knowing:
+- Only the connection that sent *Request Control* may set the power; others can read.
+- When the controlling app disconnects, its target is kept for 10 s (app restart), then lowered to 80 W if it was higher. *Reset* lowers it to 80 W at once.
+- While the cockpit isn't pedalled, the reported power is 0 W.
+- Simulation mode (grade) and resistance levels are not supported yet.
 
 ## Hardware
 

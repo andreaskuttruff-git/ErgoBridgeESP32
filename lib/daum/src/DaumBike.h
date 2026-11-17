@@ -18,6 +18,8 @@ struct BikeSnapshot {
     int cockpitType = -1;
     /// Highest power this cockpit accepts (400 W until the type is known).
     int maxWatt = 400;
+    /// Highest target the bike takes now: the protocol's 800 W until the type is known, then maxWatt.
+    int targetLimit = 800;
     /// The power the bridge asks the cockpit for.
     int targetWatt = 100;
     /// Connections set up since start (1 after the first connect).

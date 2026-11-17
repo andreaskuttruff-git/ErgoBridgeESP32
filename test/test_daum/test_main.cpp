@@ -232,6 +232,19 @@ void test_target_power_reaches_the_cockpit() {
     TEST_ASSERT_EQUAL(25, rig.sim.wattSteps * 5);
 }
 
+void test_unchanged_target_is_not_sent_again() {
+    Rig rig;
+    DaumBike bike(rig.sim, rig.clock, captureLog);
+    run(bike, rig.clock, 2);
+    bike.setTargetWatt(150);
+    run(bike, rig.clock, 1);
+    const int setWatts = rig.sim.count(0x51);
+    bike.setTargetWatt(150); // apps resend their ERG target all the time
+    bike.setTargetWatt(152); // same 5 W step
+    run(bike, rig.clock, 2);
+    TEST_ASSERT_EQUAL(setWatts, rig.sim.count(0x51));
+}
+
 void test_two_missing_replies_are_asked_again_without_reconnecting() {
     Rig rig;
     DaumBike bike(rig.sim, rig.clock, captureLog);
@@ -349,6 +362,7 @@ int main(int, char**) {
     RUN_TEST(test_target_set_before_connecting_keeps_its_value_on_an_8008);
     RUN_TEST(test_old_cockpit_without_get_version_caps_the_target_at_400_w);
     RUN_TEST(test_target_power_reaches_the_cockpit);
+    RUN_TEST(test_unchanged_target_is_not_sent_again);
     RUN_TEST(test_two_missing_replies_are_asked_again_without_reconnecting);
     RUN_TEST(test_three_missing_replies_count_as_lost_connection_and_reconnect);
     RUN_TEST(test_reply_out_of_step_is_discarded_and_asked_again);

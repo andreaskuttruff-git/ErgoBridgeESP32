@@ -1,8 +1,9 @@
-// ErgoBridge firmware entry point.
-// Milestone 1: the cockpit task (connect, poll, set power) and a serial console; Bluetooth FTMS follows in M2.
+// ErgoBridge firmware entry point: the cockpit task (connect, poll, set power), Bluetooth LE (FTMS, Cycling Power,
+// Heart Rate) and a serial console.
 
 #include <Arduino.h>
 
+#include "BleBridge.h"
 #include "DaumBike.h"
 #include "SimulatedCockpit.h"
 
@@ -12,7 +13,7 @@ constexpr uint32_t ConsoleBaud = 115200;
 constexpr int CockpitRxPin = 16;
 constexpr int CockpitTxPin = 17;
 constexpr uint32_t CockpitBaud = 9600;
-constexpr uint32_t StatusEveryMs = 2000;
+constexpr uint32_t StatusEveryMs = 10000;
 
 class ArduinoClock : public daum::Clock {
 public:
@@ -66,6 +67,7 @@ void logLine(const char* line) {
 }
 
 daum::DaumBike bike(cockpitPort, arduinoClock, logLine);
+BleBridge ble(bike);
 
 void cockpitTask(void*) {
     for (;;) {
@@ -75,6 +77,12 @@ void cockpitTask(void*) {
 }
 
 void printStatus() {
+    const uint16_t controller = ble.controller();
+    if (controller == ftms::TrainerControl::NoConnection)
+        Serial.printf("ble: %u connected, no app in control\n", ble.connectedCount());
+    else
+        Serial.printf("ble: %u connected, connection %u in control\n", ble.connectedCount(), controller);
+
     const daum::BikeSnapshot s = bike.snapshot();
     if (!s.connected) {
         Serial.printf("cockpit: not connected, target %d W\n", s.targetWatt);
@@ -85,7 +93,7 @@ void printStatus() {
                   s.data.program);
 }
 
-/// Console commands (115200 baud): "w 150" sets 150 W, "s" prints the status, "h" lists the commands.
+/// Console commands (115200 baud): "w 150" sets 150 W, "s" prints the status.
 void handleConsole() {
     static char line[32];
     static size_t length = 0;
@@ -122,13 +130,15 @@ void setup() {
     cockpitPort.begin();
     Serial.println("ErgoBridge - cockpit on UART2 (GPIO16 RX, GPIO17 TX)");
 #endif
-    // Core 1: the cockpit; core 0 is left to the Bluetooth stack (M2).
+    // Core 1: the cockpit; core 0 is left to the Bluetooth stack.
     xTaskCreatePinnedToCore(cockpitTask, "cockpit", 6144, nullptr, 2, nullptr, 1);
+    ble.begin();
 }
 
 void loop() {
     static uint32_t lastStatus = 0;
     handleConsole();
+    ble.update(millis());
     if (millis() - lastStatus >= StatusEveryMs) {
         lastStatus = millis();
         printStatus();

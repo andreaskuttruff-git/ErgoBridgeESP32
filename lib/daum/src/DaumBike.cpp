@@ -25,6 +25,9 @@ int DaumBike::storeTarget(int watt, int limit) {
     int rounded = (watt + DaumCockpit::WattStep / 2) / DaumCockpit::WattStep * DaumCockpit::WattStep;
     if (rounded < DaumCockpit::MinWatt) rounded = DaumCockpit::MinWatt;
     if (rounded > limit) rounded = limit;
+    // Apps resend the same ERG target often; only a change costs a Set_Watt on the serial line.
+    if (rounded == target_.load())
+        return rounded;
     // Value first, then the flag: step() clears the flag before it reads the value.
     target_.store(rounded);
     snapshot_.targetWatt = rounded;
@@ -124,6 +127,7 @@ bool DaumBike::queryCockpitType() {
     std::lock_guard<std::mutex> lock(mutex_);
     snapshot_.cockpitType = cockpitType;
     snapshot_.maxWatt = maxWatt_;
+    snapshot_.targetLimit = maxWatt_;
     targetLimit_.store(maxWatt_);
     if (target_.load() > maxWatt_)
         storeTarget(maxWatt_, maxWatt_);
