@@ -46,6 +46,28 @@ Behaviour worth knowing:
 - the cockpit's 9-pin PC socket is on its underside; check the cable's pinout before connecting
 - 5 V USB power supply
 
+### Wiring
+
+![Wiring: USB power supply, ESP32, MAX3232 module, DB9, Daum PC cable](docs/wiring.svg)
+
+| ESP32-WROOM-32 | MAX3232 module | DB9 (wired like a PC's COM port) | Purpose |
+|---|---|---|---|
+| 3V3 | VCC | – | supply: **3.3 V, not 5 V** – the ESP32 pins are not 5 V tolerant |
+| GND | GND | pin 5 | common ground |
+| GPIO17 (TX2) | TXD → T1OUT | pin 3 | ESP32 transmits to the cockpit |
+| GPIO16 (RX2) | RXD ← R1IN | pin 2 | cockpit transmits to the ESP32 |
+
+- MAX3232 modules label their TTL pins inconsistently; swapped RX/TX does no harm, there is just no answer.
+- The DB9 side behaves like the PC's COM port, so the existing Daum PC cable plugs in unchanged.
+- **Measure before the first connection:** with the cockpit switched on, measure the PC end of the Daum cable
+  against pin 5. The pin at **−5 to −12 V** at rest is the cockpit's transmit line; it must reach R1IN (pin 2 on
+  the bridge side). If it is pin 3 instead, put a null-modem adapter in between; use a gender changer if the
+  connectors don't mate.
+- DTR/RTS: some Daum cables draw power from them. If the cockpit doesn't answer without them, drive DTR (pin 4)
+  active from a spare MAX3232 output (not drawn).
+- Testing on a PC without the cockpit: leave out the MAX3232 and connect GPIO16/17 and GND straight to a 3.3 V
+  USB-TTL adapter (TX to RX, RX to TX).
+
 ## Build
 
 [PlatformIO](https://platformio.org/) (VS Code extension or `pip install platformio`):
