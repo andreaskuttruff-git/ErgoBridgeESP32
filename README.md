@@ -42,36 +42,46 @@ Behaviour worth knowing:
 ## Hardware
 
 - ESP32 dev board (ESP32-WROOM-32 / `esp32dev`)
-- MAX3232 RS232 ↔ TTL converter for 3.3 V with **both drivers usable** (T1 for transmit, T2 for DTR). Many cheap
-  DB9 modules only bring out channel 1; then DTR has to be soldered to the chip (T2OUT = pin 7, T2IN = pin 10).
-- the original Daum PC cable (it stays between bridge and cockpit, see below)
+- MAX3232 RS232 ↔ TTL converter for 3.3 V with **both drivers usable** (T1 for transmit, T2 for the pull-up).
+  Many cheap DB9 modules only bring out channel 1; then T2 has to be soldered to the chip (T2OUT = pin 7,
+  T2IN = pin 10). A two-channel module with pin headers and no DB9 is the easiest.
+- a serial cable with a **female** DB9 end, cut off (wires for pins 2 and 3 are enough)
+- a 4.7 kΩ resistor
 - 5 V USB power supply
 
 ### Wiring
 
-![Wiring: USB power supply, ESP32, MAX3232, DB9 wired like a PC, Daum PC cable](docs/wiring.svg)
+![Wiring: USB power supply, ESP32, MAX3232 with 4.7 kOhm pull-up, female DB9 straight onto the cockpit](docs/wiring.svg)
 
-| ESP32-WROOM-32 | MAX3232 | DB9 (wired like a PC's COM port) | Purpose |
+The bridge plugs straight onto the cockpit's **male** DB9 connector (underside of the cockpit):
+
+| ESP32-WROOM-32 | MAX3232 | Cockpit DB9 | Purpose |
 |---|---|---|---|
 | 3V3 | VCC | – | supply: **3.3 V, not 5 V** – the ESP32 pins are not 5 V tolerant |
-| GND | GND | (pin 5) | ground; the Daum cable apparently doesn't use pin 5 |
-| GPIO17 (TX2) | T1IN → T1OUT | pin 3 (TxD) | ESP32 transmits to the cockpit |
-| GPIO16 (RX2) | R1OUT ← R1IN | pin 2 (RxD) | cockpit transmits to the ESP32 |
-| – | T2IN to GND → T2OUT | pin 4 (DTR) | **always on**, positive voltage – required, see below |
+| GND | GND | – | ground of ESP32 and MAX3232 only; the cockpit gets no ground |
+| GPIO17 (TX2) | T1IN → T1OUT | pin 3 | ESP32 transmits to the cockpit |
+| GPIO16 (RX2) | R1OUT ← R1IN | pin 2 | cockpit transmits to the ESP32 |
+| – | T2IN to GND → T2OUT | via **4.7 kΩ** to pin 2 | pull-up for the receive line, always on |
 
-The Daum PC cable, as measured: pins 2 and 3 run straight through (not crossed), pin 4 (DTR) goes through
-4.8 kΩ onto the pin-2 line, and pin 5 seems not to be connected. The cockpit's interface is probably
-opto-isolated: its output only pulls the receive line (pin 2) low; the high level comes from DTR through the
-4.8 kΩ in the cable. So, exactly like a PC (ErgoWattControl sets `DtrEnable`), the bridge has to hold DTR at a
-positive RS232 level, or nothing arrives from the cockpit. With T2IN tied to GND, the MAX3232's second driver
-puts about +5.5 V on DTR; a bare 3.3 V TTL connection without the MAX3232 doesn't work.
+Why the resistor: the original Daum PC cable, as measured, runs pins 2 and 3 straight through, feeds the PC's
+DTR (pin 4) through 4.8 kΩ onto the pin-2 line and connects nothing else – only two wires reach the cockpit.
+The cockpit's interface is probably opto-isolated: its output only pulls the receive line down (most likely
+towards pin 3), the high level has to come from the PC side. Here the MAX3232's second driver takes DTR's place:
+with T2IN tied to GND, T2OUT sits at about +5.5 V and pulls pin 2 up through the 4.7 kΩ. Without it nothing
+arrives from the cockpit; a bare 3.3 V TTL connection without the MAX3232 doesn't work either.
 
+- Check the cut cable with a multimeter (continuity) – wire colours of serial cables aren't standardised.
+  Pin numbers, looking at the female connector's holes with the wide row on top: pin 5 top left, pin 1 top
+  right, pin 9 bottom left, pin 6 bottom right. Insulate the unused wires one by one.
 - MAX3232 modules label their TTL pins inconsistently (TXD/RXD from either side); swapped RX/TX does no harm,
   there is just no answer.
-- The cockpit has a male DB9 connector, the Daum cable two female ends. The bridge's DB9 must be male, like the
-  PC's COM port; with a female module connector use a male/male gender changer (straight 1:1, **not** null-modem).
 - Testing on a PC without the cockpit: leave out the MAX3232 and connect GPIO16/17 and GND straight to a 3.3 V
   USB-TTL adapter (TX to RX, RX to TX).
+
+#### Alternative: behind the original Daum PC cable
+
+The bridge can also take the PC's place at the end of the Daum cable. Then it needs a **male** DB9 and no
+resistor of its own (the cable has it): T1OUT to pin 3, R1IN to pin 2, T2OUT to pin 4 (DTR).
 
 ## Build
 
